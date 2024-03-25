@@ -1,45 +1,45 @@
+# frozen_string_literal: true
+
 require 'rails_helper'
 
-describe LiftStationFlowEstimator do
+RSpec.describe LiftStationFlowEstimator, type: :service do
+  subject { described_class.new(lift_station:, pump_cycle:) }
+
+  let(:lift_station) { instance_double(LiftStation, id: 1, lead_to_off_volume: 3000) }
+  let(:pump_cycle) { instance_double(PumpCycle, duration: 30) } # Duration in minutes
+
   describe '#perform' do
-    let(:lift_station) { FactoryBot.create :lift_station, pump: FactoryBot.create(:pump_with_telemetry) }
+    it 'creates a new LiftStationCycle with the correct attributes' do
+      allow(subject).to receive_messages(inflow_rate: 100, outflow_rate: 100, flow_total: 5000)
 
-    it 'should not error' do
-      expect { LiftStationFlowEstimator.new(lift_station:).perform }.not_to raise_error
-    end
+      expect(LiftStationCycle).to receive(:create).with(
+        inflow_rate:     100,
+        outflow_rate:    100,
+        flow_total:      5000,
+        lift_station_id: lift_station.id
+      )
 
-    it 'should create a lift station cycle' do
-      expect { LiftStationFlowEstimator.new(lift_station:).perform }.to change { LiftStationCycle.count }.by(1)
+      subject.perform
     end
   end
 
   describe '#inflow_rate' do
-    it 'should be implemented' do
-      expect { LiftStationFlowEstimator.new(lift_station:).inflow_rate }.not_to raise_error(NotImplementedError)
-    end
-
-    # TODO: write a test validating LiftStationFlowEstimator#inflow_rate returns the correct inflow rate
-    it 'should calculate the correct inflow rate' do
-    end
-  end
-
-  describe '#outflow_rate' do
-    it 'should be implemented' do
-      expect { LiftStationFlowEstimator.new(lift_station:).outflow_rate }.not_to raise_error(NotImplementedError)
-    end
-
-    # TODO: write a test validating LiftStationFlowEstimator#outflow_rate returns the correct outflow rate
-    it 'should calculate the correct inflow rate' do
+    it 'returns the estimated inflow rate' do
+      expect(subject.inflow_rate).to eq(100)
     end
   end
 
   describe '#flow_total' do
-    it 'should be implemented' do
-      expect { LiftStationFlowEstimator.new(lift_station:).flow_total }.not_to raise_error(NotImplementedError)
+    it 'calculates the total flow including inflow during pump operation' do
+      estimated_total_flow = (100 * 30) + 3000
+      expect(subject.flow_total).to eq(estimated_total_flow)
     end
+  end
 
-    # TODO: write a test validating LiftStationFlowEstimator#flow_total returns the correct flow rate
-    it 'should calculate the correct flow_total' do
+  describe '#outflow_rate' do
+    it 'calculates the rate at which water is pumped out of the tank' do
+      estimated_outflow_rate = 3000 / 30
+      expect(subject.outflow_rate).to eq(estimated_outflow_rate)
     end
   end
 end

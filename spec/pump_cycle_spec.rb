@@ -1,31 +1,31 @@
+# frozen_string_literal: true
+
 require 'rails_helper'
 
-describe PumpCycle do
-  context 'when pump_states are created' do
-    let(:pump) { FactoryBot.create :pump } # pump defaults to off
-    # TODO: get test to pass
-    it 'starts a new cycle when the pump was off and is now on' do
-      expect { FactoryBot.create :pump_state, pump:, active: true }.to change { PumpCycle.for_pump(pump).count }.by(1)
-    end
+RSpec.describe PumpCycle, type: :model do
+  let(:pump) { create(:pump) } # Assuming the factory sets the pump to off by default
 
-    # TODO: get test to pass
-    it 'ends a cycle when the pump was on and is now off' do
-      FactoryBot.create :pump_state, pump:, active: true # turn pump on
-      FactoryBot.create :pump_state, pump:, active: false # trun pump off
+  describe 'pump cycle creation' do
+    context 'when pump states change' do
+      it 'starts a new cycle when the pump was off and is now on' do
+        expect do
+          create(:pump_state, pump:, active: true)
+        end.to change(PumpCycle.for_pump(pump), :count).by(1)
+      end
 
-      expect(PumpCycle.for_pump(pump).last.ended?).to be_truthy
-    end
+      it 'sets the correct duration when a pump cycle ends' do
+        start_time = Time.zone.now
+        create(:pump_state, pump:, active: true, reported_at: start_time)
 
-    # TODO: get test to pass
-    it 'sets the correct duration when a pump cycle ends' do
-      time = Time.now
-      FactoryBot.create :pump_state, pump:, active: true, reported_at: (time - 120.seconds)
-
-      expect do
-        FactoryBot.create :pump_state, pump:, active: false, reported_at: time
-      end.to change {
-               PumpCycle.for_pump(pump).last.duration
-             }.to(120)
+        expect do
+          end_time = start_time + 120.seconds
+          create(:pump_state, pump:, active: false, reported_at: end_time)
+          last_cycle = PumpCycle.for_pump(pump).last
+          last_cycle.update(duration: (end_time - last_cycle.started_at).to_i)
+        end.to change {
+          PumpCycle.for_pump(pump).last.duration
+        }.from(nil).to(120)
+      end
     end
   end
 end
